@@ -1,0 +1,51 @@
+{
+  "name": "terrace-prospector",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "lint": "eslint",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "db:seed": "tsx scripts/seed.ts",
+    "test:parcels": "node scripts/test-parcel-fetch.mjs",
+    "test:extraction": "node scripts/test-extraction.mjs",
+    "test:address-validation": "tsx scripts/test-address-validation.mjs",
+    "test:satellite-imagery": "tsx scripts/test-satellite-imagery.mjs",
+    "test:scoring": "tsx scripts/test-scoring.mjs",
+    "test:vision-analysis": "tsx scripts/test-vision-analysis.mjs",
+    "extract": "tsx scripts/extract-campaign.ts",
+    "worker": "tsx src/worker.ts"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "bullmq": "^5.79.1",
+    "ioredis": "^5.11.1",
+    "next": "16.2.9",
+    "pg": "^8.22.0",
+    "prisma": "^7.8.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "xlsx": "^0.18.5",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/pg": "^8.20.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "babel-plugin-react-compiler": "1.0.0",
+    "dotenv": "^17.4.2",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "tailwindcss": "^4",
+    "tsx": "^4.22.4",
+    "typescript": "^5"
+  }
+}
