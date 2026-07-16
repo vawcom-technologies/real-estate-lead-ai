@@ -19,7 +19,7 @@ const worker = new Worker<CampaignJobData>(
     console.log(`Processing campaign ${job.data.campaignId}`);
     const result = await processCampaignJob(job.data.campaignId);
     console.log(
-      `Campaign ${job.data.campaignId} completed (${result.parcelsStored} parcels kept, ${result.parcelsRejected ?? 0} rejected, ${result.imagesRetrieved ?? 0} images, ${result.visionAnalyzed ?? 0} vision analyzed, grades A/B/C: ${result.grades?.A ?? 0}/${result.grades?.B ?? 0}/${result.grades?.C ?? 0})`,
+      `Campaign ${job.data.campaignId} completed (${result.parcelsStored} parcels kept, ${result.parcelsRejected ?? 0} rejected, ${result.imagesRetrieved ?? 0} images, ${result.visionAnalyzed ?? 0} vision analyzed, marketing package: ${result.marketingPostcards ?? 0} postcards / ${result.marketingReports ?? 0} reports, grades A/B/C: ${result.grades?.A ?? 0}/${result.grades?.B ?? 0}/${result.grades?.C ?? 0})`,
     );
     return result;
   },

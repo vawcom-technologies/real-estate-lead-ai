@@ -1,6 +1,7 @@
 import { saveCampaignExcel } from "@/lib/campaign-export";
 import { CAMPAIGN_STATUS } from "@/lib/campaign-status";
 import { runExtraction } from "@/lib/extraction";
+import { generateMarketingPackage } from "@/lib/marketing-export";
 import { prisma } from "@/lib/prisma";
 import { runImageryRetrieval } from "@/lib/imagery-retrieval";
 import { runQualification } from "@/lib/qualification";
@@ -34,6 +35,7 @@ export async function processCampaignJob(campaignId: string) {
     });
 
     await saveCampaignExcel(campaignId, parcels);
+    const marketing = await generateMarketingPackage(campaignId);
 
     await prisma.campaign.update({
       where: { id: campaignId },
@@ -52,6 +54,9 @@ export async function processCampaignJob(campaignId: string) {
       visionSkippedNoApiKey: vision.skippedNoApiKey,
       visionFailed: vision.failed,
       grades: vision.grades,
+      marketingPostcards: marketing.postcards,
+      marketingReports: marketing.reports,
+      marketingImages: marketing.images,
     };
   } catch (error) {
     await prisma.campaign

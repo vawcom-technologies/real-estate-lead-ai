@@ -1,45 +1,154 @@
 "use client";
 
+import Link from "next/link";
 import { canDownloadExport } from "@/lib/campaign-status";
 
 type CampaignDownloadButtonProps = {
   campaignId: string;
   status: string;
   parcelCount?: number;
+  compact?: boolean;
 };
+
+function ProcessingMessage({ status }: { status: string }) {
+  const messages: Record<string, { title: string; detail: string }> = {
+    pending: {
+      title: "Waiting in queue",
+      detail: "The worker will start processing shortly.",
+    },
+    running: {
+      title: "Processing campaign",
+      detail: "Extracting parcels, validating addresses, and scoring…",
+    },
+    failed: {
+      title: "Processing failed",
+      detail: "Check that Redis and the worker are running.",
+    },
+  };
+
+  const message = messages[status] ?? {
+    title: "Not available",
+    detail: "Exports are not ready for this campaign.",
+  };
+
+  return (
+    <div className="rounded-xl border border-border bg-surface px-4 py-3">
+      <p className="text-sm font-medium text-foreground">{message.title}</p>
+      <p className="mt-0.5 text-xs leading-relaxed text-muted">{message.detail}</p>
+    </div>
+  );
+}
+
+function DownloadLink({
+  href,
+  title,
+  subtitle,
+  variant,
+}: {
+  href: string;
+  title: string;
+  subtitle: string;
+  variant: "secondary" | "primary";
+}) {
+  const styles =
+    variant === "primary"
+      ? "border-primary bg-primary text-white hover:bg-primary-hover"
+      : "border-border bg-white text-foreground hover:border-primary/30 hover:bg-primary-soft/40";
+
+  return (
+    <a
+      href={href}
+      className={`flex flex-col rounded-xl border px-4 py-3 transition-colors ${styles}`}
+    >
+      <span className="text-sm font-semibold">{title}</span>
+      <span
+        className={`mt-0.5 text-xs ${variant === "primary" ? "text-white/80" : "text-muted"}`}
+      >
+        {subtitle}
+      </span>
+    </a>
+  );
+}
 
 export function CampaignDownloadButton({
   campaignId,
   status,
   parcelCount = 0,
+  compact = false,
 }: CampaignDownloadButtonProps) {
-  const href = `/api/campaigns/${campaignId}/export`;
   const ready = canDownloadExport(status);
-  const disabled = !ready;
 
-  let label = "Download Excel";
-  if (status === "pending") {
-    label = "Queued…";
-  } else if (status === "running") {
-    label = "Processing…";
-  } else if (status === "failed") {
-    label = "Processing failed";
-  } else if (ready && parcelCount === 0) {
-    label = "Download Excel (empty)";
+  if (!ready) {
+    if (compact) {
+      return <ProcessingMessage status={status} />;
+    }
+
+    return (
+      <div className="space-y-3">
+        <ProcessingMessage status={status} />
+        <Link
+          href={`/campaigns/${campaignId}`}
+          className="inline-flex text-sm font-medium text-primary hover:text-primary-hover"
+        >
+          View campaign details →
+        </Link>
+      </div>
+    );
+  }
+
+  const emptyNote =
+    parcelCount === 0 ? " · No parcels matched your filters" : "";
+
+  if (compact) {
+    return (
+      <div className="flex min-w-[200px] flex-col gap-2">
+        <Link
+          href={`/campaigns/${campaignId}`}
+          className="text-sm font-medium text-primary hover:text-primary-hover"
+        >
+          View details →
+        </Link>
+        <div className="flex flex-col gap-1.5">
+          <a
+            href={`/api/campaigns/${campaignId}/export`}
+            download={`campaign_${campaignId}.xlsx`}
+            className="rounded-lg border border-border bg-white px-3 py-2 text-left text-xs transition-colors hover:bg-gray-50"
+          >
+            <span className="font-semibold text-foreground">Parcel spreadsheet</span>
+            <span className="mt-0.5 block text-muted">Excel · grades & analysis</span>
+          </a>
+          <a
+            href={`/api/campaigns/${campaignId}/export/package`}
+            download={`campaign_${campaignId}_marketing.zip`}
+            className="rounded-lg border border-primary/20 bg-primary-soft px-3 py-2 text-left text-xs transition-colors hover:bg-primary/10"
+          >
+            <span className="font-semibold text-primary">Marketing kit</span>
+            <span className="mt-0.5 block text-primary/70">ZIP · PDFs & images</span>
+          </a>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <a
-      href={disabled ? undefined : href}
-      download={`campaign_${campaignId}.xlsx`}
-      aria-disabled={disabled}
-      className={`inline-flex w-full items-center justify-center rounded-md border px-4 py-2.5 text-sm font-medium transition-colors ${
-        disabled
-          ? "cursor-not-allowed border-stone-200 bg-stone-100 text-stone-400"
-          : "border-stone-300 bg-white text-stone-900 hover:bg-stone-50"
-      }`}
-    >
-      {label}
-    </a>
+    <div className="space-y-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted">
+        Download assets{emptyNote}
+      </p>
+      <div className="grid gap-2">
+        <DownloadLink
+          href={`/api/campaigns/${campaignId}/export`}
+          title="Parcel spreadsheet"
+          subtitle="Excel file · all parcels, grades, and analysis"
+          variant="secondary"
+        />
+        <DownloadLink
+          href={`/api/campaigns/${campaignId}/export/package`}
+          title="Marketing kit"
+          subtitle="ZIP · postcards, reports, images, and summary PDF"
+          variant="primary"
+        />
+      </div>
+    </div>
   );
 }

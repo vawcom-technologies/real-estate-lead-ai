@@ -2,12 +2,13 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import Link from "next/link";
 import {
   createCampaign,
   type CreateCampaignState,
 } from "@/app/actions/campaign";
 import { CampaignDownloadButton } from "@/components/campaign-download-button";
-import { formatCampaignStatus } from "@/lib/campaign-status";
+import { StatusBadge } from "@/components/status-badge";
 
 const initialState: CreateCampaignState = {};
 
@@ -18,9 +19,9 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="mt-2 w-full rounded-md bg-stone-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+      className="w-full rounded-xl bg-primary px-4 py-3.5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
     >
-      {pending ? "Starting…" : "Start Campaign"}
+      {pending ? "Creating campaign…" : "Launch campaign"}
     </button>
   );
 }
@@ -30,28 +31,31 @@ function Field({
   label,
   type = "text",
   placeholder,
+  hint,
   error,
 }: {
   id: string;
   label: string;
   type?: string;
   placeholder?: string;
+  hint?: string;
   error?: string[];
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-stone-700">
+      <label htmlFor={id} className="text-sm font-semibold text-foreground">
         {label}
       </label>
+      {hint ? <p className="text-xs text-muted">{hint}</p> : null}
       <input
         id={id}
         name={id}
         type={type}
         placeholder={placeholder}
-        className="rounded-md border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 outline-none transition-colors placeholder:text-stone-400 focus:border-stone-400 focus:ring-2 focus:ring-stone-900/5"
+        className="rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted/70 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
       />
       {error?.[0] ? (
-        <p className="text-xs text-red-600">{error[0]}</p>
+        <p className="text-xs font-medium text-danger">{error[0]}</p>
       ) : null}
     </div>
   );
@@ -62,90 +66,123 @@ export function CreateCampaignForm() {
 
   if (state.success && state.campaignId) {
     return (
-      <div className="rounded-lg border border-stone-200 bg-white p-8">
-        <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium uppercase tracking-wide text-stone-500">
-            Campaign created
-          </p>
-          <h2 className="text-xl font-semibold tracking-tight text-stone-900">
-            Your campaign has been queued
-          </h2>
-          <p className="text-sm text-stone-600">
-            Status:{" "}
-            <span className="inline-flex items-center rounded-full border border-stone-200 bg-stone-50 px-2.5 py-0.5 text-xs font-medium text-stone-700">
-              {formatCampaignStatus(state.status ?? "pending")}
-            </span>
-          </p>
-          <p className="text-xs text-stone-500">
-            Processing runs in the background. Refresh this page to check progress.
-          </p>
-          <p className="text-xs text-stone-500">
-            File: campaign_{state.campaignId}.xlsx
-          </p>
+      <div className="surface-card p-8">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">
+          Campaign launched
+        </p>
+        <h2 className="font-display mt-2 text-2xl text-foreground">
+          Job queued in Redis
+        </h2>
+        <div className="mt-4 flex items-center gap-2">
+          <span className="text-sm font-medium text-muted">Current status</span>
+          <StatusBadge status={state.status ?? "pending"} />
         </div>
-        <div className="mt-6">
-          <CampaignDownloadButton
-            campaignId={state.campaignId}
-            status={state.status ?? "pending"}
-          />
+        <p className="mt-4 text-sm leading-relaxed text-muted">
+          The worker will extract DVF sales, validate addresses (BAN / OSM /
+          Google), fetch satellite images, score parcels A/B/C, optionally run
+          OpenAI vision, then build Excel + marketing ZIP exports.
+        </p>
+
+        <ol className="mt-6 space-y-2 rounded-2xl bg-surface px-4 py-4 text-sm text-muted">
+          {[
+            "Extract house sales from DVF",
+            "Qualify residential addresses only",
+            "Retrieve satellite imagery",
+            "Rule scoring + AI vision",
+            "Generate Excel & marketing package",
+          ].map((step, index) => (
+            <li key={step} className="flex gap-3">
+              <span className="font-semibold text-primary">{index + 1}.</span>
+              {step}
+            </li>
+          ))}
+        </ol>
+
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link
+            href={`/campaigns/${state.campaignId}`}
+            className="inline-flex rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-hover"
+          >
+            Open campaign details
+          </Link>
+          <Link
+            href="/campaigns"
+            className="inline-flex rounded-xl border border-border bg-white px-5 py-2.5 text-sm font-medium text-foreground hover:bg-surface"
+          >
+            Back to campaign list
+          </Link>
         </div>
+
+        {state.status === "completed" ? (
+          <div className="mt-8 border-t border-border pt-8">
+            <CampaignDownloadButton
+              campaignId={state.campaignId}
+              status={state.status ?? "pending"}
+            />
+          </div>
+        ) : null}
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-8">
+    <div className="surface-card p-8">
       <div className="mb-8">
-        <h2 className="text-lg font-semibold tracking-tight text-stone-900">
-          Create Campaign
-        </h2>
-        <p className="mt-1 text-sm text-stone-500">
-          Enter the search area and agent details to begin prospecting.
+        <h2 className="font-display text-2xl text-foreground">Campaign setup</h2>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          Define the search area and agent contact used on postcards and reports.
+          Plot size filter is fixed at ≥ 80 m² for houses.
         </p>
       </div>
 
-      <form action={formAction} className="flex flex-col gap-5">
+      <form action={formAction} className="grid gap-6 sm:grid-cols-2">
         <Field
           id="postcode"
-          label="Postcode"
-          placeholder="e.g. 75001"
+          label="Department / postcode"
+          hint="French postcode (e.g. 33290) or department code (e.g. 33)"
+          placeholder="33290"
           error={state.fieldErrors?.postcode}
         />
         <Field
           id="min_price"
-          label="Minimum Price"
+          label="Minimum sale price (€)"
+          hint="Only include houses sold at or above this amount"
           type="number"
-          placeholder="e.g. 250000"
+          placeholder="250000"
           error={state.fieldErrors?.min_price}
         />
         <Field
           id="agent_name"
-          label="Agent Name"
-          placeholder="e.g. Marie Dupont"
+          label="Agent name"
+          placeholder="Marie Dupont"
           error={state.fieldErrors?.agent_name}
         />
         <Field
           id="agent_phone"
-          label="Phone"
+          label="Agent phone"
           type="tel"
-          placeholder="e.g. +33 6 12 34 56 78"
+          placeholder="+33 6 12 34 56 78"
           error={state.fieldErrors?.agent_phone}
         />
-        <Field
-          id="agent_email"
-          label="Email"
-          type="email"
-          placeholder="e.g. marie@agency.fr"
-          error={state.fieldErrors?.agent_email}
-        />
+        <div className="sm:col-span-2">
+          <Field
+            id="agent_email"
+            label="Agent email"
+            type="email"
+            placeholder="marie@agency.fr"
+            error={state.fieldErrors?.agent_email}
+          />
+        </div>
 
         {state.error ? (
-          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="sm:col-span-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {state.error}
           </p>
         ) : null}
 
-        <SubmitButton />
+        <div className="sm:col-span-2">
+          <SubmitButton />
+        </div>
       </form>
     </div>
   );

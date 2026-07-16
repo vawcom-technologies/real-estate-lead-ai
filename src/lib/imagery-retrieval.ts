@@ -2,6 +2,7 @@ import { getParcelGeometry } from "@/lib/parcel-geometry";
 import { prisma } from "@/lib/prisma";
 import {
   fetchTopDownImage,
+  getGoogleMapsApiKey,
   getPropertyImagePath,
   savePropertyImage,
 } from "@/lib/satellite-imagery";
@@ -29,8 +30,9 @@ export async function retrieveParcelImage(parcelId: string): Promise<{
   cached: boolean;
 }> {
   const imagePath = getPropertyImagePath(parcelId);
+  const preferFreshGoogleImagery = Boolean(getGoogleMapsApiKey());
 
-  if (await imageExists(parcelId)) {
+  if (!preferFreshGoogleImagery && (await imageExists(parcelId))) {
     return { path: imagePath, source: "cached", cached: true };
   }
 

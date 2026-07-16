@@ -39,10 +39,10 @@ function flattenPositions(
   geometry: CadastreParcelFeature["geometry"],
 ): GeoJsonPosition[] {
   if (geometry.type === "Polygon") {
-    return geometry.coordinates.flat();
+    return geometry.coordinates.flat(2) as GeoJsonPosition[];
   }
 
-  return geometry.coordinates.flat(2);
+  return geometry.coordinates.flat(2) as GeoJsonPosition[];
 }
 
 export function centroidFromPositions(

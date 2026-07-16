@@ -10,11 +10,20 @@ async function main() {
   const { getParcelGeometry } = await import("../src/lib/parcel-geometry.ts");
   const {
     fetchTopDownImage,
+    getGoogleMapsApiKey,
     getPropertyImagePath,
     savePropertyImage,
   } = await import("../src/lib/satellite-imagery.ts");
 
   console.log(`Satellite imagery test for parcel ${PARCEL_ID}\n`);
+
+  const googleKey = getGoogleMapsApiKey();
+  console.log(
+    googleKey
+      ? "GOOGLE_MAPS_API_KEY is set — Google Maps Satellite will be used first."
+      : "No GOOGLE_MAPS_API_KEY — falling back to IGN WMS orthophotos.",
+  );
+  console.log();
 
   const { centroid, bbox } = await getParcelGeometry(PARCEL_ID);
   console.log(`Centroid: ${centroid.lat.toFixed(6)}, ${centroid.lon.toFixed(6)}`);

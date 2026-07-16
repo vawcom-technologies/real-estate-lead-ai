@@ -1,6 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { access } from "node:fs/promises";
-import { getPropertyImagePath } from "@/lib/satellite-imagery";
+import {
+  detectPropertyImageMimeType,
+  getPropertyImagePath,
+} from "@/lib/satellite-imagery";
 import type { Grade } from "@/lib/scoring";
 
 const OPENAI_API_BASE = "https://api.openai.com/v1/chat/completions";
@@ -130,6 +133,7 @@ export async function analyzePropertyImage(
 
   const imagePath = getPropertyImagePath(parcelId);
   const imageBuffer = await readFile(imagePath);
+  const mimeType = detectPropertyImageMimeType(imageBuffer);
   const base64 = imageBuffer.toString("base64");
 
   const response = await fetch(OPENAI_API_BASE, {
@@ -150,7 +154,7 @@ export async function analyzePropertyImage(
             {
               type: "image_url",
               image_url: {
-                url: `data:image/jpeg;base64,${base64}`,
+                url: `data:${mimeType};base64,${base64}`,
                 detail: "high",
               },
             },

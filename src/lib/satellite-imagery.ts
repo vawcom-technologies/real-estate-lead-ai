@@ -3,9 +3,33 @@ import path from "node:path";
 import type { ParcelBoundingBox } from "@/lib/parcel-geometry";
 
 const IGN_WMS_BASE = "https://data.geopf.fr/wms-r/wms";
+const GOOGLE_STATIC_MAPS_BASE =
+  "https://maps.googleapis.com/maps/api/staticmap";
 const IMAGE_SIZE = 512;
 /** Blank/no-data WMS tiles are tiny JPEGs (~4 KB); real orthophotos are much larger. */
 const MIN_IMAGE_BYTES = 8_000;
+
+export function getGoogleMapsApiKey(): string | undefined {
+  return process.env.GOOGLE_MAPS_API_KEY?.trim() || undefined;
+}
+
+export function detectPropertyImageMimeType(buffer: Buffer): string {
+  if (buffer.length > 3 && buffer[0] === 0xff && buffer[1] === 0xd8) {
+    return "image/jpeg";
+  }
+
+  if (
+    buffer.length > 8 &&
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47
+  ) {
+    return "image/png";
+  }
+
+  return "application/octet-stream";
+}
 
 const ORTHOPHOTO_LAYERS = [
   "HR.ORTHOIMAGERY.ORTHOPHOTOS",
@@ -44,12 +68,13 @@ function buildWmsUrl(layer: string, bbox: ParcelBoundingBox): string {
   return `${IGN_WMS_BASE}?${params}`;
 }
 
-function isJpegResponse(contentType: string | null, bytes: Uint8Array): boolean {
-  if (!contentType?.includes("image/jpeg")) {
+function isValidImageBytes(bytes: Uint8Array): boolean {
+  if (bytes.length < MIN_IMAGE_BYTES) {
     return false;
   }
 
-  return bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8;
+  const buffer = Buffer.from(bytes);
+  return detectPropertyImageMimeType(buffer).startsWith("image/");
 }
 
 async function fetchWmsImage(
@@ -63,11 +88,49 @@ async function fetchWmsImage(
   }
 
   const bytes = new Uint8Array(await response.arrayBuffer());
-  if (!isJpegResponse(response.headers.get("content-type"), bytes)) {
+  if (!isValidImageBytes(bytes)) {
     return null;
   }
 
-  if (bytes.length < MIN_IMAGE_BYTES) {
+  return Buffer.from(bytes);
+}
+
+function buildGoogleStaticMapUrl(
+  bbox: ParcelBoundingBox,
+  apiKey: string,
+): string {
+  const params = new URLSearchParams({
+    maptype: "satellite",
+    size: `${IMAGE_SIZE}x${IMAGE_SIZE}`,
+    scale: "2",
+    key: apiKey,
+  });
+
+  params.set(
+    "visible",
+    `${bbox.minLat},${bbox.minLon}|${bbox.maxLat},${bbox.maxLon}`,
+  );
+
+  return `${GOOGLE_STATIC_MAPS_BASE}?${params}`;
+}
+
+async function fetchGoogleSatelliteImage(
+  bbox: ParcelBoundingBox,
+  apiKey: string,
+): Promise<Buffer | null> {
+  const response = await fetch(buildGoogleStaticMapUrl(bbox, apiKey));
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const contentType = response.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    return null;
+  }
+
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (!isValidImageBytes(bytes)) {
     return null;
   }
 
@@ -77,6 +140,14 @@ async function fetchWmsImage(
 export async function fetchTopDownImage(
   bbox: ParcelBoundingBox,
 ): Promise<{ buffer: Buffer; source: string }> {
+  const apiKey = getGoogleMapsApiKey();
+  if (apiKey) {
+    const googleImage = await fetchGoogleSatelliteImage(bbox, apiKey);
+    if (googleImage) {
+      return { buffer: googleImage, source: "Google Maps Satellite" };
+    }
+  }
+
   for (const layer of ORTHOPHOTO_LAYERS) {
     const buffer = await fetchWmsImage(layer, bbox);
     if (buffer) {
