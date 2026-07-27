@@ -2,17 +2,21 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { formatCampaignStage } from "@/lib/campaign-status";
 
 /** Auto-refresh campaign pages while processing. */
 export function CampaignStatusPoller({
   campaignId,
   status,
+  stage,
 }: {
   campaignId: string;
   status: string;
+  stage?: string | null;
 }) {
   const router = useRouter();
   const shouldPoll = status === "pending" || status === "running";
+  const stageLabel = formatCampaignStage(stage);
 
   useEffect(() => {
     if (!shouldPoll) return;
@@ -23,8 +27,14 @@ export function CampaignStatusPoller({
           cache: "no-store",
         });
         if (!response.ok) return;
-        const data = (await response.json()) as { status?: string };
-        if (data.status && data.status !== status) {
+        const data = (await response.json()) as {
+          status?: string;
+          stage?: string | null;
+        };
+        if (
+          (data.status && data.status !== status) ||
+          (data.stage ?? null) !== (stage ?? null)
+        ) {
           router.refresh();
         }
       } catch {
@@ -33,14 +43,19 @@ export function CampaignStatusPoller({
     }, 4000);
 
     return () => clearInterval(interval);
-  }, [campaignId, router, shouldPoll, status]);
+  }, [campaignId, router, shouldPoll, status, stage]);
 
   if (!shouldPoll) return null;
 
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary-soft px-4 py-3 text-sm text-primary">
-      <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
-      Live updates every few seconds while the worker processes this campaign.
+    <div className="flex flex-col gap-1 rounded-xl border border-primary/20 bg-primary-soft px-4 py-3 text-sm text-primary sm:flex-row sm:items-center sm:gap-3">
+      <span className="flex items-center gap-2">
+        <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
+        {stageLabel ?? "Job queued…"}
+      </span>
+      <span className="text-primary/70">
+        Live updates while the worker processes this campaign.
+      </span>
     </div>
   );
 }

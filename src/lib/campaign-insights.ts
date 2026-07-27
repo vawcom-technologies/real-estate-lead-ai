@@ -1,4 +1,4 @@
-import { CAMPAIGN_STATUS } from "@/lib/campaign-status";
+import { CAMPAIGN_STAGE, CAMPAIGN_STATUS } from "@/lib/campaign-status";
 import { prisma } from "@/lib/prisma";
 
 export type GradeCounts = { A: number; B: number; C: number; ungraded: number };
@@ -38,51 +38,80 @@ export async function getCampaignInsights(
 export const PIPELINE_STEPS = [
   {
     id: "extraction",
-    label: "Data Extraction",
-    description: "DVF house sales by postcode",
+    label: "Extracting Parcels",
+    description: "DVF house sales, cadastre, price & plot filters",
+    stage: CAMPAIGN_STAGE.extracting,
   },
   {
-    id: "validation",
-    label: "Address Validation",
-    description: "BAN, OpenStreetMap, Google Maps",
+    id: "analyzing",
+    label: "Analyzing Properties",
+    description: "Address validation, satellite, scoring & vision AI",
+    stage: CAMPAIGN_STAGE.analyzing,
   },
   {
-    id: "imagery",
-    label: "Satellite Imagery",
-    description: "Google Static Maps or IGN orthophoto",
+    id: "visuals",
+    label: "Generating Visuals",
+    description: "Before satellite + AI terrace after images",
+    stage: CAMPAIGN_STAGE.visuals,
   },
   {
-    id: "scoring",
-    label: "Rule Scoring",
-    description: "A/B/C grade from plot & environment",
+    id: "postcards",
+    label: "Creating Postcards",
+    description: "BEFORE | AFTER PDFs with value uplift",
+    stage: CAMPAIGN_STAGE.postcards,
   },
   {
-    id: "vision",
-    label: "AI Vision",
-    description: "Backyard analysis from satellite image",
-  },
-  {
-    id: "marketing",
-    label: "Marketing Package",
-    description: "Postcards, PDF reports, ZIP export",
+    id: "packaging",
+    label: "Packaging Files",
+    description: "Excel, before/after zips, postcards zip",
+    stage: CAMPAIGN_STAGE.packaging,
   },
 ] as const;
 
-export function pipelineStepStates(status: string): Array<"done" | "active" | "pending" | "failed"> {
+const STAGE_ORDER = [
+  CAMPAIGN_STAGE.extracting,
+  CAMPAIGN_STAGE.analyzing,
+  CAMPAIGN_STAGE.visuals,
+  CAMPAIGN_STAGE.postcards,
+  CAMPAIGN_STAGE.packaging,
+  CAMPAIGN_STAGE.done,
+] as const;
+
+export function pipelineStepStates(
+  status: string,
+  stage?: string | null,
+): Array<"done" | "active" | "pending" | "failed"> {
   if (status === CAMPAIGN_STATUS.failed) {
-    return ["done", "done", "failed", "pending", "pending", "pending"];
+    const activeIndex = stage
+      ? Math.max(
+          0,
+          STAGE_ORDER.indexOf(stage as (typeof STAGE_ORDER)[number]),
+        )
+      : 0;
+    return PIPELINE_STEPS.map((_, index) =>
+      index < activeIndex ? "done" : index === activeIndex ? "failed" : "pending",
+    );
   }
 
-  if (status === CAMPAIGN_STATUS.completed) {
+  if (status === CAMPAIGN_STATUS.completed || stage === CAMPAIGN_STAGE.done) {
     return PIPELINE_STEPS.map(() => "done" as const);
   }
 
-  if (status === CAMPAIGN_STATUS.running) {
-    return ["done", "done", "done", "active", "pending", "pending"];
+  if (status === CAMPAIGN_STATUS.pending) {
+    return PIPELINE_STEPS.map(() => "pending" as const);
   }
 
-  if (status === CAMPAIGN_STATUS.pending) {
-    return ["pending", "pending", "pending", "pending", "pending", "pending"];
+  if (status === CAMPAIGN_STATUS.running) {
+    const current = stage
+      ? STAGE_ORDER.indexOf(stage as (typeof STAGE_ORDER)[number])
+      : 0;
+    const activeIndex = current < 0 ? 0 : Math.min(current, PIPELINE_STEPS.length - 1);
+
+    return PIPELINE_STEPS.map((_, index) => {
+      if (index < activeIndex) return "done";
+      if (index === activeIndex) return "active";
+      return "pending";
+    });
   }
 
   return PIPELINE_STEPS.map(() => "pending" as const);

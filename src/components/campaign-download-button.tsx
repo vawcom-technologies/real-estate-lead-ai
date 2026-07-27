@@ -18,7 +18,8 @@ function ProcessingMessage({ status }: { status: string }) {
     },
     running: {
       title: "Processing campaign",
-      detail: "Extracting parcels, validating addresses, and scoring…",
+      detail:
+        "Extracting parcels → analyzing → visuals → postcards → packaging…",
     },
     failed: {
       title: "Processing failed",
@@ -111,10 +112,10 @@ export function CampaignDownloadButton({
         <div className="flex flex-col gap-1.5">
           <a
             href={`/api/campaigns/${campaignId}/export`}
-            download={`campaign_${campaignId}.xlsx`}
+            download={`parcels.xlsx`}
             className="rounded-lg border border-border bg-white px-3 py-2 text-left text-xs transition-colors hover:bg-gray-50"
           >
-            <span className="font-semibold text-foreground">Parcel spreadsheet</span>
+            <span className="font-semibold text-foreground">parcels.xlsx</span>
             <span className="mt-0.5 block text-muted">Excel · grades & analysis</span>
           </a>
           <a
@@ -122,8 +123,8 @@ export function CampaignDownloadButton({
             download={`campaign_${campaignId}_marketing.zip`}
             className="rounded-lg border border-primary/20 bg-primary-soft px-3 py-2 text-left text-xs transition-colors hover:bg-primary/10"
           >
-            <span className="font-semibold text-primary">Marketing kit</span>
-            <span className="mt-0.5 block text-primary/70">ZIP · PDFs & images</span>
+            <span className="font-semibold text-primary">Full marketing kit</span>
+            <span className="mt-0.5 block text-primary/70">ZIP · all assets</span>
           </a>
         </div>
       </div>
@@ -135,19 +136,39 @@ export function CampaignDownloadButton({
       <p className="text-xs font-medium uppercase tracking-wide text-muted">
         Download assets{emptyNote}
       </p>
-      <div className="grid gap-2">
+      <div className="grid gap-2 sm:grid-cols-2">
         <DownloadLink
           href={`/api/campaigns/${campaignId}/export`}
-          title="Parcel spreadsheet"
-          subtitle="Excel file · all parcels, grades, and analysis"
+          title="parcels.xlsx"
+          subtitle="Spreadsheet · parcels, grades, analysis"
           variant="secondary"
         />
         <DownloadLink
-          href={`/api/campaigns/${campaignId}/export/package`}
-          title="Marketing kit"
-          subtitle="ZIP · postcards, reports, images, and summary PDF"
-          variant="primary"
+          href={`/api/campaigns/${campaignId}/export/assets?kind=before`}
+          title="before_images.zip"
+          subtitle="Satellite JPEGs per parcel"
+          variant="secondary"
         />
+        <DownloadLink
+          href={`/api/campaigns/${campaignId}/export/assets?kind=after`}
+          title="after_images.zip"
+          subtitle="AI terrace visualizations"
+          variant="secondary"
+        />
+        <DownloadLink
+          href={`/api/campaigns/${campaignId}/export/assets?kind=postcards`}
+          title="postcards.zip"
+          subtitle="BEFORE | AFTER PDFs with agent contact"
+          variant="secondary"
+        />
+        <div className="sm:col-span-2">
+          <DownloadLink
+            href={`/api/campaigns/${campaignId}/export/package`}
+            title="Full marketing kit"
+            subtitle="ZIP · Excel, postcards, reports, before/after images"
+            variant="primary"
+          />
+        </div>
       </div>
     </div>
   );

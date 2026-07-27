@@ -18,6 +18,7 @@
     "test:satellite-imagery": "tsx scripts/test-satellite-imagery.mjs",
     "test:scoring": "tsx scripts/test-scoring.mjs",
     "test:vision-analysis": "tsx scripts/test-vision-analysis.mjs",
+    "test:before-after": "tsx scripts/test-before-after.mjs",
     "test:marketing": "tsx scripts/test-marketing.mjs",
     "test:marketing-pdfs": "tsx scripts/test-marketing-pdfs.mjs",
     "extract": "tsx scripts/extract-campaign.ts",

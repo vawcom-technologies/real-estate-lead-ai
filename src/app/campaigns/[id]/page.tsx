@@ -35,7 +35,11 @@ export default async function CampaignDetailPage({ params }: PageProps) {
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
-      <CampaignStatusPoller campaignId={campaign.id} status={campaign.status} />
+      <CampaignStatusPoller
+        campaignId={campaign.id}
+        status={campaign.status}
+        stage={campaign.stage}
+      />
 
       <div>
         <Link
@@ -88,11 +92,11 @@ export default async function CampaignDetailPage({ params }: PageProps) {
               Processing pipeline
             </h2>
             <p className="mt-1 text-sm text-muted">
-              Extraction → validation → imagery → scoring → vision → marketing
+              Extracting → analyzing → visuals → postcards → packaging
             </p>
           </div>
         </div>
-        <PipelineSteps status={campaign.status} />
+        <PipelineSteps status={campaign.status} stage={campaign.stage} />
       </section>
 
       <div className="grid gap-6 lg:grid-cols-3">

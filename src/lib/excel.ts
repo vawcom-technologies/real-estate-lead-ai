@@ -90,5 +90,5 @@ export function buildCampaignExcelBuffer(parcels: ParcelExportRow[]): Buffer {
 }
 
 export function campaignExportFilename(campaignId: string): string {
-  return `campaign_${campaignId}.xlsx`;
+  return `parcels_${campaignId}.xlsx`;
 }

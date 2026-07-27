@@ -15,6 +15,8 @@ model Campaign {
   agent_phone  String
   agent_email  String
   status       String   @default("pending")
+  /// Fine-grained pipeline stage while status is running
+  stage        String?
   created_at   DateTime @default(now())
   parcels      Parcel[]
 

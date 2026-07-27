@@ -1,10 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
 import { getCampaignExportPath } from "@/lib/campaign-export";
-import {
-  buildCampaignExcelBuffer,
-  campaignExportFilename,
-} from "@/lib/excel";
+import { buildCampaignExcelBuffer } from "@/lib/excel";
 import { prisma } from "@/lib/prisma";
 
 type RouteContext = {
@@ -27,7 +24,6 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
   }
 
-  const filename = campaignExportFilename(campaign.id);
   let buffer: Buffer;
 
   try {
@@ -40,7 +36,7 @@ export async function GET(_request: Request, context: RouteContext) {
     headers: {
       "Content-Type":
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": `attachment; filename="parcels.xlsx"`,
     },
   });
 }

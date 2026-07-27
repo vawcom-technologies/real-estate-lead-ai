@@ -14,8 +14,14 @@ const STATE_LABELS = {
   failed: "Failed",
 };
 
-export function PipelineSteps({ status }: { status: string }) {
-  const states = pipelineStepStates(status);
+export function PipelineSteps({
+  status,
+  stage,
+}: {
+  status: string;
+  stage?: string | null;
+}) {
+  const states = pipelineStepStates(status, stage);
 
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

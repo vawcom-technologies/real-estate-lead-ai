@@ -2,34 +2,34 @@ import { CampaignDownloadButton } from "@/components/campaign-download-button";
 
 const DELIVERABLES = [
   {
-    title: "Parcel spreadsheet",
+    title: "parcels.xlsx",
     desc: "Excel with grades, reasons, and AI analysis",
     status: "live" as const,
   },
   {
-    title: "Satellite images",
-    desc: "Google Maps or IGN orthophoto per parcel",
+    title: "before_images.zip",
+    desc: "Satellite / orthophoto JPEGs per parcel",
+    status: "live" as const,
+  },
+  {
+    title: "after_images.zip",
+    desc: "AI terrace visualizations (OpenAI Images)",
+    status: "live" as const,
+  },
+  {
+    title: "postcards.zip",
+    desc: "BEFORE | AFTER PDFs · value uplift · agent on back",
     status: "live" as const,
   },
   {
     title: "Property reports",
-    desc: "PDF report per parcel in the marketing ZIP",
+    desc: "PDF report per parcel in the marketing kit",
     status: "live" as const,
   },
   {
-    title: "Postcards",
-    desc: "Print-ready PDF with agent branding",
+    title: "Cloud storage (R2)",
+    desc: "Optional Cloudflare R2 sync for before/after images",
     status: "live" as const,
-  },
-  {
-    title: "Before / after images",
-    desc: "OpenAI image generation · Phase 3",
-    status: "soon" as const,
-  },
-  {
-    title: "Map visualization",
-    desc: "Grade-colored parcel map · Phase 5",
-    status: "soon" as const,
   },
 ];
 

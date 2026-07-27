@@ -6,20 +6,23 @@ export function ParcelImage({
   parcelNumber,
   alt,
   className = "",
+  variant = "before",
 }: {
   parcelNumber: string;
   alt: string;
   className?: string;
+  variant?: "before" | "after";
 }) {
   const [failed, setFailed] = useState(false);
-  const src = `/api/property-images/${encodeURIComponent(parcelNumber)}`;
+  const query = variant === "after" ? "?variant=after" : "";
+  const src = `/api/property-images/${encodeURIComponent(parcelNumber)}${query}`;
 
   if (failed) {
     return (
       <div
         className={`flex items-center justify-center bg-gray-100 text-xs text-muted ${className}`}
       >
-        No satellite image
+        {variant === "after" ? "No after image" : "No satellite image"}
       </div>
     );
   }

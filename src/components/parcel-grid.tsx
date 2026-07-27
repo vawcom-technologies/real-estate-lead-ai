@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { GradeBadge } from "@/components/grade-badge";
 import { ParcelImage } from "@/components/parcel-image";
 import { parseAnalysis } from "@/lib/parse-analysis";
+import { estimateValueUplift } from "@/lib/value-uplift";
 
 export type ParcelCardData = {
   id: string;
@@ -190,10 +191,7 @@ function ParcelDetailDrawer({
   const house = toNumber(parcel.house_area);
   const backyard =
     plot !== null && house !== null ? Math.max(0, plot - house) : null;
-  const uplift =
-    toNumber(parcel.sale_price) !== null
-      ? Math.round((toNumber(parcel.sale_price)! * 0.07) / 1000) * 1000
-      : null;
+  const uplift = estimateValueUplift(parcel.sale_price);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm">
@@ -300,7 +298,7 @@ function ParcelDetailDrawer({
 
           <section>
             <h3 className="text-sm font-semibold text-foreground">
-              Before / after (Phase 3)
+              Before / after
             </h3>
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div className="overflow-hidden rounded-2xl border border-border">
@@ -308,30 +306,26 @@ function ParcelDetailDrawer({
                   <ParcelImage
                     parcelNumber={parcel.parcel_number}
                     alt="Before satellite"
+                    variant="before"
                   />
                 </div>
                 <p className="border-t border-border px-3 py-2 text-xs font-medium">
                   Before · satellite
                 </p>
               </div>
-              <div className="overflow-hidden rounded-2xl border border-dashed border-accent/40 bg-accent-soft/40">
-                <div className="flex aspect-square items-center justify-center px-4 text-center">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">
-                      After render
-                    </p>
-                    <p className="mt-1 text-xs text-muted">
-                      Needs OpenAI image generation API. Coming in Phase 3.
-                    </p>
-                    {uplift !== null ? (
-                      <p className="mt-3 text-xs font-semibold text-primary">
-                        Est. value uplift ≈ €{uplift.toLocaleString("fr-FR")}
-                      </p>
-                    ) : null}
-                  </div>
+              <div className="overflow-hidden rounded-2xl border border-border">
+                <div className="aspect-square bg-surface">
+                  <ParcelImage
+                    parcelNumber={parcel.parcel_number}
+                    alt="After terrace render"
+                    variant="after"
+                  />
                 </div>
-                <p className="border-t border-accent/20 px-3 py-2 text-xs font-medium text-muted">
-                  After · AI terrace mock
+                <p className="border-t border-border px-3 py-2 text-xs font-medium">
+                  After · AI terrace
+                  {uplift !== null
+                    ? ` · +€${uplift.toLocaleString("fr-FR")}`
+                    : ""}
                 </p>
               </div>
             </div>

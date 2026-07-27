@@ -1,8 +1,8 @@
 import { access } from "node:fs/promises";
-import type PDFDocument from "pdfkit";
 import PDFDocumentConstructor from "pdfkit";
 import type { ParsedAnalysis } from "@/lib/marketing/types";
 import { getPropertyImagePath } from "@/lib/satellite-imagery";
+import { getAfterImagePath } from "@/lib/storage";
 
 export function sanitizeFilename(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -58,17 +58,25 @@ export function parseAnalysis(analysis: string | null): ParsedAnalysis {
   }
 }
 
-export async function getParcelImagePath(
-  parcelNumber: string,
-): Promise<string | null> {
-  const imagePath = getPropertyImagePath(parcelNumber);
-
+async function existingPath(imagePath: string): Promise<string | null> {
   try {
     await access(imagePath);
     return imagePath;
   } catch {
     return null;
   }
+}
+
+export async function getParcelImagePath(
+  parcelNumber: string,
+): Promise<string | null> {
+  return existingPath(getPropertyImagePath(parcelNumber));
+}
+
+export async function getParcelAfterImagePath(
+  parcelNumber: string,
+): Promise<string | null> {
+  return existingPath(getAfterImagePath(parcelNumber));
 }
 
 export function gradeColor(grade: string | null): string {

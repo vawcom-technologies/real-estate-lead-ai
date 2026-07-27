@@ -53,11 +53,24 @@ export function getIntegrationStatuses(): IntegrationStatus[] {
     {
       id: "openai-images",
       name: "OpenAI Image Generation",
-      description: "Before/after terrace visualizations (Phase 3).",
+      description: "Before/after terrace visualizations from satellite photos.",
       envVar: "OPENAI_API_KEY",
       configured: hasEnv("OPENAI_API_KEY"),
       requiredFor: ["Before/after renders"],
-      phase: "planned",
+      phase: "live",
+    },
+    {
+      id: "cloudflare-r2",
+      name: "Cloudflare R2",
+      description: "Optional object storage for before/after images (local fallback).",
+      envVar: "R2_BUCKET",
+      configured:
+        hasEnv("R2_ACCOUNT_ID") &&
+        hasEnv("R2_ACCESS_KEY_ID") &&
+        hasEnv("R2_SECRET_ACCESS_KEY") &&
+        hasEnv("R2_BUCKET"),
+      requiredFor: ["Cloud image storage"],
+      phase: "live",
     },
   ];
 }

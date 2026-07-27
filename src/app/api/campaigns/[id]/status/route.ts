@@ -14,6 +14,7 @@ export async function GET(_request: Request, context: RouteContext) {
     select: {
       id: true,
       status: true,
+      stage: true,
       postcode: true,
       created_at: true,
       _count: { select: { parcels: true } },
@@ -29,6 +30,7 @@ export async function GET(_request: Request, context: RouteContext) {
   return NextResponse.json({
     id: campaign.id,
     status: campaign.status,
+    stage: campaign.stage,
     postcode: campaign.postcode,
     parcelCount: campaign._count.parcels,
     grades: insights.grades,

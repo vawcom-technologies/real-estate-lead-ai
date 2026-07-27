@@ -1,6 +1,6 @@
-import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { ParcelBoundingBox } from "@/lib/parcel-geometry";
+import { storeBeforeImage } from "@/lib/storage";
 
 const IGN_WMS_BASE = "https://data.geopf.fr/wms-r/wms";
 const GOOGLE_STATIC_MAPS_BASE =
@@ -167,8 +167,6 @@ export async function savePropertyImage(
   parcelId: string,
   buffer: Buffer,
 ): Promise<string> {
-  await mkdir(PROPERTY_IMAGES_DIR, { recursive: true });
-  const imagePath = getPropertyImagePath(parcelId);
-  await writeFile(imagePath, buffer);
-  return imagePath;
+  const stored = await storeBeforeImage(parcelId, buffer);
+  return stored.localPath;
 }
