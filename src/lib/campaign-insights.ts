@@ -38,32 +38,32 @@ export async function getCampaignInsights(
 export const PIPELINE_STEPS = [
   {
     id: "extraction",
-    label: "Extracting Parcels",
-    description: "DVF house sales, cadastre, price & plot filters",
+    label: "Data extraction",
+    description: "Recent house sales and the price floor",
     stage: CAMPAIGN_STAGE.extracting,
   },
   {
     id: "analyzing",
-    label: "Analyzing Properties",
-    description: "Address validation, satellite, scoring & vision AI",
+    label: "Property intelligence",
+    description: "Residential checks, parcels, imagery, and scoring",
     stage: CAMPAIGN_STAGE.analyzing,
   },
   {
     id: "visuals",
-    label: "Generating Visuals",
-    description: "Before satellite + AI terrace after images",
+    label: "Visual analysis",
+    description: "Satellite photos and terrace visualizations",
     stage: CAMPAIGN_STAGE.visuals,
   },
   {
     id: "postcards",
-    label: "Creating Postcards",
-    description: "BEFORE | AFTER PDFs with value uplift",
+    label: "Marketing assets",
+    description: "Postcards and property reports",
     stage: CAMPAIGN_STAGE.postcards,
   },
   {
     id: "packaging",
-    label: "Packaging Files",
-    description: "Excel, before/after zips, postcards zip",
+    label: "Campaign package",
+    description: "Spreadsheet, imagery, and the marketing kit",
     stage: CAMPAIGN_STAGE.packaging,
   },
 ] as const;

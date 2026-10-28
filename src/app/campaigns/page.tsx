@@ -1,26 +1,55 @@
-import Link from "next/link";
+import { Plus } from "lucide-react";
+import { CampaignFilters } from "@/components/campaign-filters";
 import { CampaignTable } from "@/components/campaign-table";
+import { ButtonLink } from "@/components/ui/button";
+import { DataUnavailable } from "@/components/ui/data-unavailable";
+import { PageHeader } from "@/components/ui/page-header";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+const STATUSES = new Set(["pending", "running", "completed", "failed"]);
+
 type PageProps = {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    status?: string;
+    postcode?: string;
+    agent?: string;
+    from?: string;
+    to?: string;
+  }>;
 };
 
+function parseDay(value: string | undefined, end: boolean): Date | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}T${end ? "23:59:59.999" : "00:00:00"}`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export default async function CampaignsPage({ searchParams }: PageProps) {
-  const { q } = await searchParams;
-  const query = q?.trim() ?? "";
+  const params = await searchParams;
+  const query = params.q?.trim() ?? "";
+  const status = STATUSES.has(params.status ?? "") ? params.status ?? "" : "";
+  const postcode = params.postcode?.trim() ?? "";
+  const agent = params.agent?.trim() ?? "";
+  const fromValue = params.from ?? "";
+  const toValue = params.to ?? "";
+  const from = parseDay(fromValue, false);
+  const to = parseDay(toValue, true);
+  const filtered =
+    Boolean(query || status || postcode || agent || from || to);
 
   let campaigns;
-  let areaCount = 0;
 
   try {
     const rows = await prisma.campaign.findMany({
       orderBy: { created_at: "desc" },
       include: {
         _count: { select: { parcels: true } },
-        parcels: { where: { grade: "A" }, select: { id: true } },
+        parcels: {
+          select: { grade: true, address: true, municipality: true },
+        },
       },
     });
 
@@ -32,34 +61,53 @@ export default async function CampaignsPage({ searchParams }: PageProps) {
       status: campaign.status,
       created_at: campaign.created_at,
       parcelCount: campaign._count.parcels,
-      gradeA: campaign.parcels.length,
+      gradeA: campaign.parcels.filter((parcel) => parcel.grade === "A").length,
+      searchText: [
+        campaign.postcode,
+        campaign.agent_name,
+        campaign.id,
+        ...campaign.parcels.flatMap((parcel) => [
+          parcel.address ?? "",
+          parcel.municipality,
+        ]),
+      ]
+        .join(" ")
+        .toLowerCase(),
     }));
 
-    campaigns = query
-      ? mapped.filter((campaign) => {
-          const haystack =
-            `${campaign.postcode} ${campaign.agent_name} ${campaign.id}`.toLowerCase();
-          return haystack.includes(query.toLowerCase());
-        })
-      : mapped;
-
-    areaCount = new Set(campaigns.map((c) => c.postcode)).size;
+    campaigns = mapped.filter((campaign) => {
+      if (status && campaign.status !== status) return false;
+      if (
+        postcode &&
+        !campaign.postcode.toLowerCase().includes(postcode.toLowerCase())
+      ) {
+        return false;
+      }
+      if (
+        agent &&
+        !campaign.agent_name.toLowerCase().includes(agent.toLowerCase())
+      ) {
+        return false;
+      }
+      if (from && campaign.created_at < from) return false;
+      if (to && campaign.created_at > to) return false;
+      if (query && !campaign.searchText.includes(query.toLowerCase())) {
+        return false;
+      }
+      return true;
+    });
   } catch {
-    return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
-        <p className="font-medium text-amber-900">Database unavailable</p>
-      </div>
-    );
+    return <DataUnavailable />;
   }
 
+  const areaCount = new Set(campaigns.map((campaign) => campaign.postcode)).size;
+
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl tracking-tight text-foreground">
-            Campaigns
-          </h1>
-          <p className="mt-2 text-sm leading-relaxed text-muted">
+    <div className="mx-auto w-full max-w-6xl space-y-6">
+      <PageHeader
+        title="Campaigns"
+        description={
+          <>
             {campaigns.length} campaign{campaigns.length === 1 ? "" : "s"} across{" "}
             {areaCount} area{areaCount === 1 ? "" : "s"}
             {query ? (
@@ -68,27 +116,31 @@ export default async function CampaignsPage({ searchParams }: PageProps) {
                 matching <span className="font-medium text-foreground">“{query}”</span>
               </>
             ) : null}
-            . Open a campaign to inspect parcels, grades, and downloads.
-          </p>
-        </div>
-        <Link
-          href="/campaigns/new"
-          className="inline-flex shrink-0 items-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary/15 transition-colors hover:bg-primary-hover"
-        >
-          Launch campaign
-        </Link>
-      </div>
+            .
+          </>
+        }
+        actions={
+          <ButtonLink href="/campaigns/new">
+            <Plus className="h-4 w-4" aria-hidden />
+            New campaign
+          </ButtonLink>
+        }
+      />
 
-      {query ? (
-        <Link
-          href="/campaigns"
-          className="inline-flex text-sm font-medium text-primary hover:text-primary-hover"
-        >
-          Clear search
-        </Link>
-      ) : null}
+      <CampaignFilters
+        q={query}
+        status={status}
+        postcode={postcode}
+        agent={agent}
+        from={from ? fromValue : ""}
+        to={to ? toValue : ""}
+        active={filtered}
+      />
 
-      <CampaignTable campaigns={campaigns} />
+      <CampaignTable
+        campaigns={campaigns}
+        empty={filtered ? "results" : "first"}
+      />
     </div>
   );
 }

@@ -22,11 +22,11 @@ export type CampaignStage =
   (typeof CAMPAIGN_STAGE)[keyof typeof CAMPAIGN_STAGE];
 
 export const CAMPAIGN_STAGE_LABEL: Record<CampaignStage, string> = {
-  extracting: "Extracting Parcels…",
-  analyzing: "Analyzing Properties…",
-  visuals: "Generating Visuals…",
-  postcards: "Creating Postcards…",
-  packaging: "Packaging Files…",
+  extracting: "Fetching transactions",
+  analyzing: "Analyzing properties",
+  visuals: "Preparing imagery",
+  postcards: "Creating marketing assets",
+  packaging: "Packaging the campaign",
   done: "Complete",
 };
 

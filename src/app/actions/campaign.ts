@@ -59,7 +59,7 @@ export async function createCampaign(
       });
       return {
         error:
-          "Campaign created but could not be queued. Make sure Redis is running.",
+          "The campaign was saved, but analysis could not be started. Try again in a moment.",
       };
     }
 

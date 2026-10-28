@@ -20,9 +20,9 @@ export function ParcelImage({
   if (failed) {
     return (
       <div
-        className={`flex items-center justify-center bg-gray-100 text-xs text-muted ${className}`}
+        className={`flex h-full w-full items-center justify-center bg-surface px-4 text-center text-xs text-muted ${className}`}
       >
-        {variant === "after" ? "No after image" : "No satellite image"}
+        {variant === "after" ? "Visualization not ready" : "Imagery not ready"}
       </div>
     );
   }

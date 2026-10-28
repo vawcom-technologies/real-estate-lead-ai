@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { CampaignDownloadButton } from "@/components/campaign-download-button";
 import { StatusBadge } from "@/components/status-badge";
-import { CAMPAIGN_STATUS } from "@/lib/campaign-status";
+import { EmptyState } from "@/components/ui/empty-state";
+import { DataUnavailable } from "@/components/ui/data-unavailable";
+import { PageHeader } from "@/components/ui/page-header";
+import { formatDate, formatNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -11,79 +14,56 @@ export default async function ExportsPage() {
 
   try {
     campaigns = await prisma.campaign.findMany({
-      where: { status: CAMPAIGN_STATUS.completed },
       orderBy: { created_at: "desc" },
       include: { _count: { select: { parcels: true } } },
     });
   } catch {
-    return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
-        <p className="font-medium text-amber-900">Database unavailable</p>
-      </div>
-    );
+    return <DataUnavailable />;
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8">
-      <div>
-        <h1 className="font-display text-3xl tracking-tight text-foreground">
-          Exports library
-        </h1>
-        <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
-          Completed campaigns produce a parcel spreadsheet (Excel) and a marketing
-          kit ZIP with postcards, property reports, satellite images, and a
-          campaign summary PDF.
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-6xl space-y-8">
+      <PageHeader
+        eyebrow="Library"
+        title="Exports"
+        description="Download property datasets, imagery, postcards, and the full marketing kit for each campaign."
+      />
 
       {campaigns.length === 0 ? (
-        <div className="surface-card border-dashed px-8 py-16 text-center">
-          <p className="font-display text-2xl text-foreground">
-            Nothing to download yet
-          </p>
-          <p className="mx-auto mt-2 max-w-sm text-sm text-muted">
-            Exports appear here once a campaign finishes processing on the worker.
-          </p>
-          <Link
-            href="/campaigns"
-            className="mt-8 inline-flex rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white hover:bg-primary-hover"
-          >
-            Go to campaigns
-          </Link>
-        </div>
+        <EmptyState
+          title="No campaign assets yet"
+          description="Exports appear here after you launch a campaign. Completed campaigns can be downloaded immediately."
+          action={{ href: "/campaigns/new", label: "New campaign" }}
+        />
       ) : (
         <div className="space-y-6">
           {campaigns.map((campaign) => (
-            <article key={campaign.id} className="surface-card p-6">
-              <div className="flex flex-wrap items-start justify-between gap-4">
+            <article key={campaign.id} className="ui-card p-5 sm:p-6">
+              <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-lg font-semibold text-foreground">
-                      Postcode {campaign.postcode}
+                    <h2 className="text-lg font-semibold tracking-tight text-foreground">
+                      {campaign.postcode}
                     </h2>
                     <StatusBadge status={campaign.status} />
                   </div>
-                  <p className="mt-1 text-sm text-muted">{campaign.agent_name}</p>
-                  <p className="mt-2 text-sm text-muted">
-                    {campaign._count.parcels} parcels ·{" "}
-                    {campaign.created_at.toLocaleDateString("fr-FR")}
+                  <p className="mt-1 text-sm text-muted">
+                    {campaign.agent_name} · {formatNumber(campaign._count.parcels)}{" "}
+                    properties · {formatDate(campaign.created_at)}
                   </p>
                 </div>
                 <Link
-                  href={`/campaigns/${campaign.id}`}
+                  href={`/campaigns/${campaign.id}?view=assets`}
                   className="text-sm font-medium text-primary hover:text-primary-hover"
                 >
-                  View campaign →
+                  Open campaign
                 </Link>
               </div>
-
-              <div className="mt-6 border-t border-border pt-6">
-                <CampaignDownloadButton
-                  campaignId={campaign.id}
-                  status={campaign.status}
-                  parcelCount={campaign._count.parcels}
-                />
-              </div>
+              <CampaignDownloadButton
+                campaignId={campaign.id}
+                status={campaign.status}
+                parcelCount={campaign._count.parcels}
+              />
             </article>
           ))}
         </div>

@@ -1,12 +1,16 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { ActivityFeed } from "@/components/activity-feed";
 import { CampaignTable } from "@/components/campaign-table";
-import { DashboardStats, GradeSummary } from "@/components/dashboard-stats";
-import { IntegrationsPanel } from "@/components/integrations-panel";
-import { PipelineOverview } from "@/components/pipeline-steps";
-import { WelcomeBanner } from "@/components/welcome-banner";
+import { DashboardStats } from "@/components/dashboard-stats";
+import { LeadQuality } from "@/components/lead-quality";
+import { WorkflowOverview } from "@/components/pipeline-steps";
+import { buttonClasses } from "@/components/ui/button";
+import { DataUnavailable } from "@/components/ui/data-unavailable";
+import { SectionHeader } from "@/components/ui/page-header";
+import { DashboardGreeting } from "@/components/welcome-banner";
 import { getDashboardStats } from "@/lib/dashboard-stats";
-import { getLiveIntegrationSummary } from "@/lib/integrations";
+import { formatNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +41,6 @@ export default async function DashboardPage() {
   let stats;
   let campaigns;
   let activity;
-  const integrations = getLiveIntegrationSummary();
 
   try {
     [stats, campaigns] = await Promise.all([
@@ -51,69 +54,90 @@ export default async function DashboardPage() {
       include: { _count: { select: { parcels: true } } },
     });
   } catch {
-    return (
-      <div className="mx-auto max-w-6xl">
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
-          <p className="font-medium text-amber-900">Database unavailable</p>
-          <p className="mt-1 text-sm text-amber-800">
-            Start Postgres with{" "}
-            <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs">
-              docker compose up -d
-            </code>{" "}
-            and run{" "}
-            <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs">
-              npm run worker
-            </code>
-          </p>
-        </div>
-      </div>
-    );
+    return <DataUnavailable />;
   }
 
-  return (
-    <div className="mx-auto max-w-6xl space-y-8">
-      <WelcomeBanner
-        runningCount={stats.runningCount}
-        integrationsReady={integrations.ready}
-        configuredIntegrations={integrations.configured}
-        totalIntegrations={integrations.total}
-      />
-      <DashboardStats stats={stats} />
+  const secondary = [
+    { label: "AI analyzed", value: stats.aiAnalyzed },
+    { label: "Grade B", value: stats.gradeB },
+    { label: "Grade C", value: stats.gradeC },
+    { label: "Campaigns", value: stats.totalCampaigns },
+  ];
 
-      <div className="animate-fade-up-delay-2 grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          <PipelineOverview />
-          <GradeSummary stats={stats} />
+  return (
+    <div className="mx-auto w-full max-w-6xl space-y-8">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="max-w-2xl">
+          <p className="text-[12px] font-medium tracking-wide text-primary">
+            Property intelligence
+          </p>
+          <h1 className="mt-2 text-[30px] font-semibold leading-tight tracking-tight text-foreground sm:text-[32px]">
+            <DashboardGreeting />
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-muted">
+            Monitor campaigns, qualified properties, and AI analysis from one
+            workspace.
+          </p>
+          {stats.runningCount > 0 ? (
+            <p className="mt-3 text-sm font-medium text-primary">
+              {formatNumber(stats.runningCount)}{" "}
+              {stats.runningCount === 1 ? "campaign is" : "campaigns are"} in
+              analysis.
+            </p>
+          ) : null}
         </div>
-        <div className="space-y-6">
-          <IntegrationsPanel statuses={integrations.statuses} compact />
-          <ActivityFeed
-            items={activity.map((c) => ({
-              id: c.id,
-              postcode: c.postcode,
-              agent_name: c.agent_name,
-              status: c.status,
-              parcelCount: c._count.parcels,
-              created_at: c.created_at,
-            }))}
-          />
-        </div>
+        <Link href="/campaigns/new" className={buttonClasses("primary", "lg")}>
+          <Plus className="h-4 w-4" aria-hidden />
+          New campaign
+        </Link>
       </div>
 
-      <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-foreground">
-            Recent campaigns
-          </h2>
-          <Link
-            href="/campaigns"
-            className="text-sm font-medium text-primary hover:text-primary-hover"
-          >
-            View all
-          </Link>
-        </div>
-        <CampaignTable campaigns={campaigns} />
-      </section>
+      <DashboardStats stats={stats} />
+
+      <dl className="flex flex-wrap gap-x-8 gap-y-3 border-y border-border py-4">
+        {secondary.map((item) => (
+          <div key={item.label}>
+            <dt className="text-[12px] text-muted">{item.label}</dt>
+            <dd className="text-sm font-semibold tabular-nums text-foreground">
+              {formatNumber(item.value)}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
+        <WorkflowOverview />
+        <LeadQuality
+          grades={{ A: stats.gradeA, B: stats.gradeB, C: stats.gradeC }}
+        />
+      </div>
+
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.7fr)]">
+        <section className="space-y-4">
+          <SectionHeader
+            title="Recent campaigns"
+            action={
+              <Link
+                href="/campaigns"
+                className="text-sm font-medium text-primary hover:text-primary-hover"
+              >
+                View all
+              </Link>
+            }
+          />
+          <CampaignTable campaigns={campaigns} />
+        </section>
+        <ActivityFeed
+          items={activity.map((campaign) => ({
+            id: campaign.id,
+            postcode: campaign.postcode,
+            agent_name: campaign.agent_name,
+            status: campaign.status,
+            parcelCount: campaign._count.parcels,
+            created_at: campaign.created_at,
+          }))}
+        />
+      </div>
     </div>
   );
 }

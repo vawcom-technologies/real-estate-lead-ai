@@ -1,10 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { ArrowUpRight, Check, X } from "lucide-react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { GradeBadge } from "@/components/grade-badge";
 import { ParcelImage } from "@/components/parcel-image";
+import { buttonClasses } from "@/components/ui/button";
+import { decimalToNumber, formatDate, formatEuro } from "@/lib/format";
+import {
+  marketingAngle,
+  opportunityDisplay,
+  reasonPoints,
+} from "@/lib/opportunity-display";
 import { parseAnalysis } from "@/lib/parse-analysis";
-import { estimateValueUplift } from "@/lib/value-uplift";
+import { estimateValueUplift, formatValueUplift } from "@/lib/value-uplift";
 
 export type ParcelCardData = {
   id: string;
@@ -22,206 +30,286 @@ export type ParcelCardData = {
   house_area: { toString(): string } | number | null;
 };
 
-function toNumber(value: { toString(): string } | number | null): number | null {
-  if (value === null) return null;
-  const n = Number(value.toString());
-  return Number.isFinite(n) ? n : null;
-}
-
-function formatPrice(value: { toString(): string } | number | null): string {
-  const n = toNumber(value);
-  if (n === null) return "—";
-  return `€${n.toLocaleString("fr-FR")}`;
-}
-
-function formatDate(value: Date | string | null): string {
+function formatSaleDate(value: Date | string | null): string {
   if (!value) return "—";
   const date = typeof value === "string" ? new Date(value) : value;
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("fr-FR");
+  return formatDate(date);
 }
+
+function formatArea(value: number | null): string {
+  if (value === null) return "—";
+  return `${Math.round(value).toLocaleString("fr-FR")} m²`;
+}
+
+const BAR: Record<string, string> = {
+  A: "bg-primary",
+  B: "bg-amber",
+  C: "bg-rose",
+};
 
 type GradeFilter = "all" | "A" | "B" | "C" | "ungraded";
 
 export function ParcelGrid({ parcels }: { parcels: ParcelCardData[] }) {
   const [filter, setFilter] = useState<GradeFilter>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const close = useCallback(() => setSelectedId(null), []);
 
   const filtered = useMemo(() => {
     if (filter === "all") return parcels;
-    if (filter === "ungraded") return parcels.filter((p) => !p.grade);
-    return parcels.filter((p) => p.grade === filter);
+    if (filter === "ungraded") return parcels.filter((parcel) => !parcel.grade);
+    return parcels.filter((parcel) => parcel.grade === filter);
   }, [filter, parcels]);
 
-  const selected = parcels.find((p) => p.id === selectedId) ?? null;
+  const selected = parcels.find((parcel) => parcel.id === selectedId) ?? null;
 
   if (parcels.length === 0) {
     return (
-      <div className="surface-card border-dashed px-8 py-14 text-center">
-        <p className="text-base font-medium text-foreground">
-          No qualified parcels yet
+      <div className="ui-card is-dashed px-6 py-14 text-center">
+        <p className="text-base font-semibold text-foreground">
+          No qualified properties yet
         </p>
-        <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-          Parcels appear after DVF extraction and residential address
-          validation. Non-residential addresses are rejected during qualification.
+        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted">
+          Properties appear after sale records are checked and non-residential
+          addresses are removed.
         </p>
       </div>
     );
   }
 
+  const filters: Array<[GradeFilter, string]> = [
+    ["all", "All"],
+    ["A", "Grade A"],
+    ["B", "Grade B"],
+    ["C", "Grade C"],
+    ["ungraded", "Ungraded"],
+  ];
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        {(
-          [
-            ["all", "All"],
-            ["A", "Grade A"],
-            ["B", "Grade B"],
-            ["C", "Grade C"],
-            ["ungraded", "Ungraded"],
-          ] as const
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setFilter(value)}
-            className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
-              filter === value
-                ? "bg-primary text-white"
-                : "bg-surface text-muted hover:text-foreground"
-            }`}
-          >
-            {label}
-            <span className="ml-1.5 opacity-70">
-              {value === "all"
-                ? parcels.length
-                : value === "ungraded"
-                  ? parcels.filter((p) => !p.grade).length
-                  : parcels.filter((p) => p.grade === value).length}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {filtered.map((parcel) => {
-          const plot = toNumber(parcel.plot_area);
-          const house = toNumber(parcel.house_area);
-          const backyard =
-            plot !== null && house !== null ? Math.max(0, plot - house) : null;
-          const parsed = parseAnalysis(parcel.analysis);
-
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by grade">
+        {filters.map(([value, label]) => {
+          const count =
+            value === "all"
+              ? parcels.length
+              : value === "ungraded"
+                ? parcels.filter((parcel) => !parcel.grade).length
+                : parcels.filter((parcel) => parcel.grade === value).length;
+          const active = filter === value;
           return (
             <button
-              key={parcel.id}
+              key={value}
               type="button"
-              onClick={() => setSelectedId(parcel.id)}
-              className="surface-card overflow-hidden text-left transition-transform hover:-translate-y-0.5 hover:shadow-lg"
+              aria-pressed={active}
+              onClick={() => setFilter(value)}
+              className={`inline-flex h-8 items-center rounded-md border px-2.5 text-[13px] font-medium ${
+                active
+                  ? "border-primary/25 bg-primary-soft text-forest"
+                  : "border-transparent text-muted hover:bg-surface hover:text-foreground"
+              }`}
             >
-              <div className="relative aspect-[4/3] overflow-hidden bg-surface">
-                <ParcelImage
-                  parcelNumber={parcel.parcel_number}
-                  alt={parcel.address ?? parcel.parcel_number}
-                />
-                <div className="absolute left-3 top-3">
-                  <GradeBadge grade={parcel.grade} />
-                </div>
-                {parsed.source ? (
-                  <span className="absolute bottom-3 left-3 rounded-md bg-black/55 px-2 py-1 text-[10px] font-medium text-white backdrop-blur">
-                    {parsed.source === "vision-ai" ? "AI vision" : parsed.source}
-                  </span>
-                ) : null}
-              </div>
-              <div className="p-4">
-                <p className="font-semibold text-foreground">
-                  {parcel.address ?? "No address"}
-                </p>
-                <p className="mt-0.5 text-xs text-muted">
-                  {parcel.municipality} · {parcel.parcel_number}
-                </p>
-                <p className="mt-2 text-sm font-medium text-foreground">
-                  {formatPrice(parcel.sale_price)}
-                </p>
-                {parcel.reason ? (
-                  <p className="mt-2 line-clamp-2 text-sm text-muted">
-                    {parcel.reason}
-                  </p>
-                ) : null}
-                <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                  <div>
-                    <dt className="text-muted">Plot</dt>
-                    <dd className="font-medium">{plot ? `${plot} m²` : "—"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted">House</dt>
-                    <dd className="font-medium">{house ? `${house} m²` : "—"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted">Yard</dt>
-                    <dd className="font-medium">
-                      {backyard !== null ? `${Math.round(backyard)} m²` : "—"}
-                    </dd>
-                  </div>
-                </dl>
-              </div>
+              {label}
+              <span className="ml-1.5 tabular-nums text-[12px] opacity-70">
+                {count}
+              </span>
             </button>
           );
         })}
       </div>
 
-      {selected ? (
-        <ParcelDetailDrawer
-          parcel={selected}
-          onClose={() => setSelectedId(null)}
-        />
-      ) : null}
+      {filtered.length === 0 ? (
+        <div className="ui-card is-dashed px-6 py-12 text-center">
+          <p className="text-sm font-medium text-foreground">
+            No properties in this grade
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((parcel) => {
+            const parsed = parseAnalysis(parcel.analysis);
+            const opportunity = opportunityDisplay(
+              parcel.grade,
+              parsed.terrace_feasibility,
+            );
+            const price = decimalToNumber(parcel.sale_price);
+            const plot = decimalToNumber(parcel.plot_area);
+
+            return (
+              <button
+                key={parcel.id}
+                type="button"
+                onClick={() => setSelectedId(parcel.id)}
+                className={`ui-card group overflow-hidden text-left transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_8px_24px_rgba(12,17,23,0.06)] ${
+                  selectedId === parcel.id ? "border-primary/40" : ""
+                }`}
+              >
+                <div className="relative aspect-[16/10] overflow-hidden bg-surface">
+                  <ParcelImage
+                    parcelNumber={parcel.parcel_number}
+                    alt={parcel.address ?? `Property ${parcel.parcel_number}`}
+                  />
+                  <div className="absolute left-3 top-3">
+                    <GradeBadge grade={parcel.grade} />
+                  </div>
+                  {parsed.source === "vision-ai" ? (
+                    <span className="absolute bottom-3 left-3 rounded-md bg-ink/80 px-2 py-1 text-[11px] font-medium text-white">
+                      AI review
+                    </span>
+                  ) : null}
+                </div>
+                <div className="p-4">
+                  <p className="text-sm font-semibold text-foreground">
+                    {parcel.address ?? "Address unavailable"}
+                  </p>
+                  <p className="mt-0.5 text-[12px] text-muted">
+                    {parcel.municipality} · {parcel.parcel_number}
+                  </p>
+                  <p className="mt-3 text-sm text-foreground">
+                    <span className="font-semibold">
+                      {price === null ? "—" : formatEuro(price)}
+                    </span>
+                    <span className="text-muted">
+                      {" "}
+                      · {formatSaleDate(parcel.sale_date)}
+                    </span>
+                  </p>
+                  <p className="mt-1 text-[13px] text-muted">
+                    Parcel {formatArea(plot)}
+                  </p>
+                  {parcel.reason ? (
+                    <p className="mt-2 line-clamp-2 text-[13px] leading-5 text-muted">
+                      {parcel.reason}
+                    </p>
+                  ) : null}
+                  {opportunity ? (
+                    <div className="mt-3">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="text-[12px] text-muted">Opportunity</p>
+                        <p className="text-sm font-semibold tabular-nums text-foreground">
+                          {opportunity.score}
+                        </p>
+                      </div>
+                      <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-surface">
+                        <div
+                          className={`h-full ${BAR[opportunity.tone]}`}
+                          style={{ width: `${opportunity.score}%` }}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+                  <p className="mt-3 inline-flex items-center gap-1 text-[13px] font-medium text-primary">
+                    View analysis
+                    <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {selected ? <ParcelDetail parcel={selected} onClose={close} /> : null}
     </div>
   );
 }
 
-function ParcelDetailDrawer({
+function ParcelDetail({
   parcel,
   onClose,
 }: {
   parcel: ParcelCardData;
   onClose: () => void;
 }) {
+  const titleId = useId();
+  const panelRef = useRef<HTMLElement>(null);
   const parsed = parseAnalysis(parcel.analysis);
-  const plot = toNumber(parcel.plot_area);
-  const house = toNumber(parcel.house_area);
+  const plot = decimalToNumber(parcel.plot_area);
+  const house = decimalToNumber(parcel.house_area);
   const backyard =
     plot !== null && house !== null ? Math.max(0, plot - house) : null;
+  const price = decimalToNumber(parcel.sale_price);
+  const opportunity = opportunityDisplay(parcel.grade, parsed.terrace_feasibility);
+  const points = reasonPoints(parcel.reason);
   const uplift = estimateValueUplift(parcel.sale_price);
+  const aiReviewed = parsed.source === "vision-ai";
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+      if (event.key !== "Tab" || !panelRef.current) return;
+      const focusable = panelRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", onKey);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    panelRef.current?.querySelector<HTMLElement>("[data-autofocus]")?.focus();
+
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [onClose]);
+
+  const facts = [
+    ["Municipality", parcel.municipality],
+    ["Department", parcel.department],
+    ["Section", parcel.section],
+    ["Parcel", parcel.parcel_number],
+    ["Sale price", price === null ? "—" : formatEuro(price)],
+    ["Sale date", formatSaleDate(parcel.sale_date)],
+    ["House", formatArea(house)],
+    ["Parcel area", formatArea(plot)],
+  ];
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50">
       <button
         type="button"
-        aria-label="Close parcel details"
-        className="absolute inset-0 cursor-default"
+        className="absolute inset-0 bg-ink/40"
+        aria-label="Close property analysis"
         onClick={onClose}
       />
-      <aside className="relative flex h-full w-full max-w-xl flex-col overflow-y-auto bg-card shadow-2xl">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card/95 px-6 py-4 backdrop-blur">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-              Parcel detail
-            </p>
-            <h2 className="mt-1 text-lg font-semibold text-foreground">
+      <aside
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="absolute inset-y-0 right-0 flex w-full max-w-xl flex-col overflow-y-auto bg-card shadow-2xl outline-none"
+      >
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-border bg-card/95 px-5 py-4 backdrop-blur">
+          <div className="min-w-0">
+            <p className="text-[12px] font-medium text-muted">Property analysis</p>
+            <h2 id={titleId} className="mt-1 text-lg font-semibold tracking-tight">
               {parcel.address ?? parcel.parcel_number}
             </h2>
           </div>
           <button
             type="button"
+            data-autofocus
             onClick={onClose}
-            className="rounded-xl border border-border px-3 py-2 text-sm font-medium hover:bg-surface"
+            className={buttonClasses("secondary", "sm")}
           >
+            <X className="h-4 w-4" aria-hidden />
             Close
           </button>
         </div>
 
-        <div className="space-y-6 p-6">
-          <div className="relative aspect-[16/10] overflow-hidden rounded-2xl bg-surface">
+        <div className="space-y-8 p-5">
+          <div className="relative aspect-[16/10] overflow-hidden rounded-xl bg-surface">
             <ParcelImage
               parcelNumber={parcel.parcel_number}
               alt={parcel.address ?? parcel.parcel_number}
@@ -232,21 +320,16 @@ function ParcelDetailDrawer({
           </div>
 
           <section>
-            <h3 className="text-sm font-semibold text-foreground">Cadastre & sale</h3>
-            <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
-              {[
-                ["Municipality", parcel.municipality],
-                ["Department", parcel.department],
-                ["Section", parcel.section],
-                ["Parcel ID", parcel.parcel_number],
-                ["Sale price", formatPrice(parcel.sale_price)],
-                ["Sale date", formatDate(parcel.sale_date)],
-                ["House area", house ? `${house} m²` : "—"],
-                ["Plot area", plot ? `${plot} m²` : "—"],
-              ].map(([label, value]) => (
-                <div key={label} className="rounded-xl bg-surface px-3 py-3">
-                  <dt className="text-xs text-muted">{label}</dt>
-                  <dd className="mt-1 font-medium text-foreground">{value}</dd>
+            <h3 className="text-sm font-semibold text-foreground">
+              Property overview
+            </h3>
+            <dl className="mt-3 grid grid-cols-2 gap-3">
+              {facts.map(([label, value]) => (
+                <div key={label} className="rounded-lg bg-surface px-3 py-2.5">
+                  <dt className="text-[12px] text-muted">{label}</dt>
+                  <dd className="mt-0.5 text-sm font-medium text-foreground">
+                    {value}
+                  </dd>
                 </div>
               ))}
             </dl>
@@ -254,80 +337,134 @@ function ParcelDetailDrawer({
 
           <section>
             <h3 className="text-sm font-semibold text-foreground">
-              Scoring & AI analysis
+              {aiReviewed ? "AI opportunity" : "Opportunity"}
             </h3>
-            <div className="mt-3 rounded-2xl border border-border bg-background p-4">
-              <p className="text-sm font-medium text-foreground">
-                {parcel.reason ?? "No reason recorded yet"}
+            {opportunity ? (
+              <div className="mt-3">
+                <p className="text-[32px] font-semibold leading-none tracking-tight">
+                  {opportunity.score}
+                  <span className="ml-1 text-base font-medium text-muted">/ 100</span>
+                </p>
+                <p className="mt-2 text-sm text-foreground">{opportunity.headline}</p>
+                <p className="mt-1 text-[12px] text-muted">
+                  Based on the property grade
+                  {parsed.terrace_feasibility
+                    ? " and site analysis"
+                    : ""}
+                  .
+                </p>
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface">
+                  <div
+                    className={`h-full ${BAR[opportunity.tone]}`}
+                    style={{ width: `${opportunity.score}%` }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-muted">
+                An opportunity reading appears once this property is graded.
               </p>
-              <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <dt className="text-xs text-muted">Estimated backyard</dt>
-                  <dd className="font-medium">
-                    {parsed.free_backyard_area ??
-                      (backyard !== null ? `${Math.round(backyard)} m²` : "—")}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted">Terrain slope</dt>
-                  <dd className="font-medium">{parsed.terrain_slope ?? "—"}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted">Vegetation</dt>
-                  <dd className="font-medium">
-                    {parsed.vegetation_density ?? "—"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted">Terrace feasibility</dt>
-                  <dd className="font-medium">
-                    {parsed.terrace_feasibility ?? "—"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted">Analysis source</dt>
-                  <dd className="font-medium">{parsed.source ?? "rule-based"}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted">Vision model</dt>
-                  <dd className="font-medium">{parsed.model ?? "—"}</dd>
-                </div>
-              </dl>
-            </div>
+            )}
           </section>
 
           <section>
             <h3 className="text-sm font-semibold text-foreground">
-              Before / after
+              Satellite analysis
             </h3>
+            <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
+              {[
+                ["Open outdoor space", parsed.free_backyard_area ?? formatArea(backyard)],
+                ["Terrain", parsed.terrain_slope ?? "—"],
+                ["Vegetation", parsed.vegetation_density ?? "—"],
+                ["Terrace feasibility", parsed.terrace_feasibility ?? "—"],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <dt className="text-[12px] text-muted">{label}</dt>
+                  <dd className="mt-0.5 font-medium text-foreground">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+
+          <section>
+            <h3 className="text-sm font-semibold text-foreground">
+              Why this property ranked here
+            </h3>
+            {points.length > 0 ? (
+              <ul className="mt-3 space-y-2">
+                {points.map((point) => (
+                  <li key={point} className="flex gap-2 text-sm text-foreground">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+                    {point}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-sm text-muted">
+                A written rationale appears after scoring.
+              </p>
+            )}
+          </section>
+
+          <section>
+            <h3 className="text-sm font-semibold text-foreground">
+              Parcel characteristics
+            </h3>
+            <dl className="mt-3 grid grid-cols-3 gap-3 text-sm">
+              {[
+                ["House", formatArea(house)],
+                ["Parcel", formatArea(plot)],
+                ["Yard", formatArea(backyard)],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-lg bg-surface px-3 py-2.5">
+                  <dt className="text-[12px] text-muted">{label}</dt>
+                  <dd className="mt-0.5 font-medium">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+
+          <section>
+            <h3 className="text-sm font-semibold text-foreground">
+              Recommended marketing angle
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-foreground">
+              {marketingAngle(parcel.grade)}
+            </p>
+            {uplift !== null ? (
+              <p className="mt-2 text-[13px] text-muted">
+                Estimated terrace value uplift {formatValueUplift(uplift)}.
+              </p>
+            ) : null}
+          </section>
+
+          <section>
+            <h3 className="text-sm font-semibold text-foreground">Before / after</h3>
             <div className="mt-3 grid grid-cols-2 gap-3">
-              <div className="overflow-hidden rounded-2xl border border-border">
+              <figure className="overflow-hidden rounded-xl border border-border">
                 <div className="aspect-square bg-surface">
                   <ParcelImage
                     parcelNumber={parcel.parcel_number}
-                    alt="Before satellite"
+                    alt="Satellite view before a terrace"
                     variant="before"
                   />
                 </div>
-                <p className="border-t border-border px-3 py-2 text-xs font-medium">
+                <figcaption className="border-t border-border px-3 py-2 text-[12px] font-medium">
                   Before · satellite
-                </p>
-              </div>
-              <div className="overflow-hidden rounded-2xl border border-border">
+                </figcaption>
+              </figure>
+              <figure className="overflow-hidden rounded-xl border border-border">
                 <div className="aspect-square bg-surface">
                   <ParcelImage
                     parcelNumber={parcel.parcel_number}
-                    alt="After terrace render"
+                    alt="Terrace visualization"
                     variant="after"
                   />
                 </div>
-                <p className="border-t border-border px-3 py-2 text-xs font-medium">
-                  After · AI terrace
-                  {uplift !== null
-                    ? ` · +€${uplift.toLocaleString("fr-FR")}`
-                    : ""}
-                </p>
-              </div>
+                <figcaption className="border-t border-border px-3 py-2 text-[12px] font-medium">
+                  After · terrace
+                </figcaption>
+              </figure>
             </div>
           </section>
         </div>

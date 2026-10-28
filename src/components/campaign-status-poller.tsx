@@ -48,13 +48,16 @@ export function CampaignStatusPoller({
   if (!shouldPoll) return null;
 
   return (
-    <div className="flex flex-col gap-1 rounded-xl border border-primary/20 bg-primary-soft px-4 py-3 text-sm text-primary sm:flex-row sm:items-center sm:gap-3">
-      <span className="flex items-center gap-2">
-        <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
-        {stageLabel ?? "Job queued…"}
+    <div
+      className="flex flex-col gap-1 rounded-xl border border-primary/20 bg-primary-soft px-4 py-3 text-sm text-forest sm:flex-row sm:items-center sm:gap-3"
+      role="status"
+    >
+      <span className="flex items-center gap-2 font-medium">
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
+        {stageLabel ?? "Preparing campaign"}
       </span>
-      <span className="text-primary/70">
-        Live updates while the worker processes this campaign.
+      <span className="text-forest/70">
+        This page updates as analysis moves forward.
       </span>
     </div>
   );
