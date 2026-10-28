@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCampaignInsights } from "@/lib/campaign-insights";
-import { prisma } from "@/lib/prisma";
+import { getWorkspaceCampaign } from "@/lib/demo-workspace";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -8,18 +8,7 @@ type RouteContext = {
 
 export async function GET(_request: Request, context: RouteContext) {
   const { id } = await context.params;
-
-  const campaign = await prisma.campaign.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      status: true,
-      stage: true,
-      postcode: true,
-      created_at: true,
-      _count: { select: { parcels: true } },
-    },
-  });
+  const campaign = getWorkspaceCampaign(id);
 
   if (!campaign) {
     return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
@@ -32,7 +21,7 @@ export async function GET(_request: Request, context: RouteContext) {
     status: campaign.status,
     stage: campaign.stage,
     postcode: campaign.postcode,
-    parcelCount: campaign._count.parcels,
+    parcelCount: campaign.parcels.length,
     grades: insights.grades,
     withAnalysis: insights.withAnalysis,
     created_at: campaign.created_at,

@@ -2,9 +2,8 @@ import { Plus } from "lucide-react";
 import { CampaignFilters } from "@/components/campaign-filters";
 import { CampaignTable } from "@/components/campaign-table";
 import { ButtonLink } from "@/components/ui/button";
-import { DataUnavailable } from "@/components/ui/data-unavailable";
 import { PageHeader } from "@/components/ui/page-header";
-import { prisma } from "@/lib/prisma";
+import { getWorkspaceCampaigns } from "@/lib/demo-workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -40,27 +39,16 @@ export default async function CampaignsPage({ searchParams }: PageProps) {
   const filtered =
     Boolean(query || status || postcode || agent || from || to);
 
-  let campaigns;
+  const rows = getWorkspaceCampaigns();
 
-  try {
-    const rows = await prisma.campaign.findMany({
-      orderBy: { created_at: "desc" },
-      include: {
-        _count: { select: { parcels: true } },
-        parcels: {
-          select: { grade: true, address: true, municipality: true },
-        },
-      },
-    });
-
-    const mapped = rows.map((campaign) => ({
+  const mapped = rows.map((campaign) => ({
       id: campaign.id,
       postcode: campaign.postcode,
       min_price: campaign.min_price,
       agent_name: campaign.agent_name,
       status: campaign.status,
       created_at: campaign.created_at,
-      parcelCount: campaign._count.parcels,
+      parcelCount: campaign.parcels.length,
       gradeA: campaign.parcels.filter((parcel) => parcel.grade === "A").length,
       searchText: [
         campaign.postcode,
@@ -75,30 +63,27 @@ export default async function CampaignsPage({ searchParams }: PageProps) {
         .toLowerCase(),
     }));
 
-    campaigns = mapped.filter((campaign) => {
-      if (status && campaign.status !== status) return false;
-      if (
-        postcode &&
-        !campaign.postcode.toLowerCase().includes(postcode.toLowerCase())
-      ) {
-        return false;
-      }
-      if (
-        agent &&
-        !campaign.agent_name.toLowerCase().includes(agent.toLowerCase())
-      ) {
-        return false;
-      }
-      if (from && campaign.created_at < from) return false;
-      if (to && campaign.created_at > to) return false;
-      if (query && !campaign.searchText.includes(query.toLowerCase())) {
-        return false;
-      }
-      return true;
-    });
-  } catch {
-    return <DataUnavailable />;
-  }
+  const campaigns = mapped.filter((campaign) => {
+    if (status && campaign.status !== status) return false;
+    if (
+      postcode &&
+      !campaign.postcode.toLowerCase().includes(postcode.toLowerCase())
+    ) {
+      return false;
+    }
+    if (
+      agent &&
+      !campaign.agent_name.toLowerCase().includes(agent.toLowerCase())
+    ) {
+      return false;
+    }
+    if (from && campaign.created_at < from) return false;
+    if (to && campaign.created_at > to) return false;
+    if (query && !campaign.searchText.includes(query.toLowerCase())) {
+      return false;
+    }
+    return true;
+  });
 
   const areaCount = new Set(campaigns.map((campaign) => campaign.postcode)).size;
 

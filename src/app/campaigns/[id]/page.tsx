@@ -7,14 +7,13 @@ import { ParcelGrid } from "@/components/parcel-grid";
 import { PipelineSteps } from "@/components/pipeline-steps";
 import { StatusBadge } from "@/components/status-badge";
 import { buttonClasses } from "@/components/ui/button";
-import { DataUnavailable } from "@/components/ui/data-unavailable";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Breadcrumb, PageHeader } from "@/components/ui/page-header";
 import { campaignAssets } from "@/lib/campaign-assets";
 import { getCampaignInsights } from "@/lib/campaign-insights";
 import { canDownloadExport } from "@/lib/campaign-status";
+import { getWorkspaceCampaign } from "@/lib/demo-workspace";
 import { formatDate, formatEuro, formatNumber } from "@/lib/format";
-import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -44,27 +43,11 @@ export default async function CampaignDetailPage({
   const { view: requestedView } = await searchParams;
   const view = resolveView(requestedView);
 
-  let campaign;
-  let insights;
-  try {
-    campaign = await prisma.campaign.findUnique({
-      where: { id },
-      include: {
-        parcels: {
-          orderBy: [{ grade: "asc" }, { municipality: "asc" }],
-        },
-      },
-    });
-    if (campaign) {
-      insights = await getCampaignInsights(id);
-    }
-  } catch {
-    return <DataUnavailable />;
-  }
-
-  if (!campaign || !insights) {
+  const campaign = getWorkspaceCampaign(id);
+  if (!campaign) {
     notFound();
   }
+  const insights = await getCampaignInsights(id);
   const ready = canDownloadExport(campaign.status);
   const assets = campaignAssets(campaign.id);
   const excel = assets.find((asset) => asset.id === "excel");

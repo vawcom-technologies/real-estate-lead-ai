@@ -1,5 +1,5 @@
 import { CAMPAIGN_STAGE, CAMPAIGN_STATUS } from "@/lib/campaign-status";
-import { prisma } from "@/lib/prisma";
+import { getWorkspaceCampaign } from "@/lib/demo-workspace";
 
 export type GradeCounts = { A: number; B: number; C: number; ungraded: number };
 
@@ -13,10 +13,7 @@ export type CampaignInsights = {
 export async function getCampaignInsights(
   campaignId: string,
 ): Promise<CampaignInsights> {
-  const parcels = await prisma.parcel.findMany({
-    where: { campaign_id: campaignId },
-    select: { grade: true, analysis: true },
-  });
+  const parcels = getWorkspaceCampaign(campaignId)?.parcels ?? [];
 
   const grades: GradeCounts = { A: 0, B: 0, C: 0, ungraded: 0 };
 

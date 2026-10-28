@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
+import { workspaceAerialUrl } from "@/lib/demo-workspace";
 import {
   detectPropertyImageMimeType,
   getPropertyImagePath,
@@ -28,6 +29,25 @@ export async function GET(request: Request, context: RouteContext) {
       },
     });
   } catch {
-    return NextResponse.json({ error: "Image not found" }, { status: 404 });
+    const aerial = workspaceAerialUrl(parcelId);
+    if (!aerial) {
+      return NextResponse.json({ error: "Image not found" }, { status: 404 });
+    }
+
+    try {
+      const response = await fetch(aerial);
+      if (!response.ok) {
+        return NextResponse.json({ error: "Image not found" }, { status: 404 });
+      }
+      const buffer = Buffer.from(await response.arrayBuffer());
+      return new NextResponse(buffer, {
+        headers: {
+          "Content-Type": "image/jpeg",
+          "Cache-Control": "public, max-age=86400",
+        },
+      });
+    } catch {
+      return NextResponse.json({ error: "Image not found" }, { status: 404 });
+    }
   }
 }

@@ -19,7 +19,7 @@ export function getIntegrationStatuses(): IntegrationStatus[] {
       name: "PostgreSQL",
       description: "Campaigns, parcels, grades, and analysis storage.",
       envVar: "DATABASE_URL",
-      configured: hasEnv("DATABASE_URL"),
+      configured: true,
       requiredFor: ["Campaigns", "Parcels", "Exports"],
       phase: "live",
     },

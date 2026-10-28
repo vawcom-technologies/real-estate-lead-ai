@@ -6,56 +6,33 @@ import { DashboardStats } from "@/components/dashboard-stats";
 import { LeadQuality } from "@/components/lead-quality";
 import { WorkflowOverview } from "@/components/pipeline-steps";
 import { buttonClasses } from "@/components/ui/button";
-import { DataUnavailable } from "@/components/ui/data-unavailable";
 import { SectionHeader } from "@/components/ui/page-header";
 import { DashboardGreeting } from "@/components/welcome-banner";
 import { getDashboardStats } from "@/lib/dashboard-stats";
+import { getWorkspaceCampaigns } from "@/lib/demo-workspace";
 import { formatNumber } from "@/lib/format";
-import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-async function getCampaignRows() {
-  const campaigns = await prisma.campaign.findMany({
-    orderBy: { created_at: "desc" },
-    take: 5,
-    include: {
-      _count: { select: { parcels: true } },
-      parcels: { where: { grade: "A" }, select: { id: true } },
-    },
-  });
-
-  return campaigns.map((campaign) => ({
-    id: campaign.id,
-    postcode: campaign.postcode,
-    min_price: campaign.min_price,
-    agent_name: campaign.agent_name,
-    status: campaign.status,
-    created_at: campaign.created_at,
-    parcelCount: campaign._count.parcels,
-    gradeA: campaign.parcels.length,
-  }));
+function getCampaignRows() {
+  return getWorkspaceCampaigns()
+    .slice(0, 5)
+    .map((campaign) => ({
+      id: campaign.id,
+      postcode: campaign.postcode,
+      min_price: campaign.min_price,
+      agent_name: campaign.agent_name,
+      status: campaign.status,
+      created_at: campaign.created_at,
+      parcelCount: campaign.parcels.length,
+      gradeA: campaign.parcels.filter((parcel) => parcel.grade === "A").length,
+    }));
 }
 
 export default async function DashboardPage() {
-  let stats;
-  let campaigns;
-  let activity;
-
-  try {
-    [stats, campaigns] = await Promise.all([
-      getDashboardStats(),
-      getCampaignRows(),
-    ]);
-
-    activity = await prisma.campaign.findMany({
-      orderBy: { created_at: "desc" },
-      take: 6,
-      include: { _count: { select: { parcels: true } } },
-    });
-  } catch {
-    return <DataUnavailable />;
-  }
+  const stats = await getDashboardStats();
+  const campaigns = getCampaignRows();
+  const activity = getWorkspaceCampaigns().slice(0, 6);
 
   const secondary = [
     { label: "AI analyzed", value: stats.aiAnalyzed },
@@ -133,7 +110,7 @@ export default async function DashboardPage() {
             postcode: campaign.postcode,
             agent_name: campaign.agent_name,
             status: campaign.status,
-            parcelCount: campaign._count.parcels,
+            parcelCount: campaign.parcels.length,
             created_at: campaign.created_at,
           }))}
         />

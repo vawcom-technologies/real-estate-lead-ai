@@ -2,24 +2,14 @@ import Link from "next/link";
 import { CampaignDownloadButton } from "@/components/campaign-download-button";
 import { StatusBadge } from "@/components/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { DataUnavailable } from "@/components/ui/data-unavailable";
 import { PageHeader } from "@/components/ui/page-header";
+import { getWorkspaceCampaigns } from "@/lib/demo-workspace";
 import { formatDate, formatNumber } from "@/lib/format";
-import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function ExportsPage() {
-  let campaigns;
-
-  try {
-    campaigns = await prisma.campaign.findMany({
-      orderBy: { created_at: "desc" },
-      include: { _count: { select: { parcels: true } } },
-    });
-  } catch {
-    return <DataUnavailable />;
-  }
+  const campaigns = getWorkspaceCampaigns();
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-8">
@@ -48,7 +38,7 @@ export default async function ExportsPage() {
                     <StatusBadge status={campaign.status} />
                   </div>
                   <p className="mt-1 text-sm text-muted">
-                    {campaign.agent_name} · {formatNumber(campaign._count.parcels)}{" "}
+                    {campaign.agent_name} · {formatNumber(campaign.parcels.length)}{" "}
                     properties · {formatDate(campaign.created_at)}
                   </p>
                 </div>
@@ -62,7 +52,7 @@ export default async function ExportsPage() {
               <CampaignDownloadButton
                 campaignId={campaign.id}
                 status={campaign.status}
-                parcelCount={campaign._count.parcels}
+                parcelCount={campaign.parcels.length}
               />
             </article>
           ))}

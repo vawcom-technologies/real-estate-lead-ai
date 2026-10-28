@@ -1,5 +1,5 @@
 import { CAMPAIGN_STATUS } from "@/lib/campaign-status";
-import { prisma } from "@/lib/prisma";
+import { getWorkspaceCampaigns } from "@/lib/demo-workspace";
 
 export type DashboardStats = {
   activeCampaigns: number;
@@ -16,25 +16,17 @@ export type DashboardStats = {
 };
 
 export async function getDashboardStats(): Promise<DashboardStats> {
-  const [
-    campaigns,
-    parcelCount,
-    gradeA,
-    gradeB,
-    gradeC,
-    gradeAB,
-    withAnalysis,
-    completedCount,
-  ] = await Promise.all([
-    prisma.campaign.findMany({ select: { status: true } }),
-    prisma.parcel.count(),
-    prisma.parcel.count({ where: { grade: "A" } }),
-    prisma.parcel.count({ where: { grade: "B" } }),
-    prisma.parcel.count({ where: { grade: "C" } }),
-    prisma.parcel.count({ where: { grade: { in: ["A", "B"] } } }),
-    prisma.parcel.count({ where: { analysis: { not: null } } }),
-    prisma.campaign.count({ where: { status: CAMPAIGN_STATUS.completed } }),
-  ]);
+  const campaigns = getWorkspaceCampaigns();
+  const parcels = campaigns.flatMap((campaign) => campaign.parcels);
+  const gradeA = parcels.filter((parcel) => parcel.grade === "A").length;
+  const gradeB = parcels.filter((parcel) => parcel.grade === "B").length;
+  const gradeC = parcels.filter((parcel) => parcel.grade === "C").length;
+  const gradeAB = gradeA + gradeB;
+  const withAnalysis = parcels.filter((parcel) => parcel.analysis).length;
+  const completedCount = campaigns.filter(
+    (campaign) => campaign.status === CAMPAIGN_STATUS.completed,
+  ).length;
+  const parcelCount = parcels.length;
 
   const activeCampaigns = campaigns.filter(
     (c) =>
